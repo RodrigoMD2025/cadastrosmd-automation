@@ -1,0 +1,73 @@
+name: Cadastro MD - Painel Automático
+
+on:
+  workflow_dispatch:  # Permite execução manual
+    inputs:
+      force_run:
+        description: 'Forçar execução mesmo sem dados pendentes'
+        required: false
+        default: 'false'
+        type: boolean
+ 
+jobs:
+  cadastro-automatico:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout do código
+      uses: actions/checkout@v4
+    
+    - name: Configurar Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+    
+    - name: Instalar dependências Python
+      run: |
+        python -m pip install --upgrade pip
+        pip install playwright pandas tqdm requests python-dotenv urllib3
+        
+    - name: Instalar navegador Playwright
+      run: |
+        playwright install chromium
+        playwright install-deps chromium
+    
+    - name: Executar cadastro automático
+      env:
+        # Credenciais do sistema MD
+        LOGIN_USERNAME: ${{ secrets.LOGIN_USERNAME }}
+        LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        
+        # Credenciais do Telegram
+        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        
+        # Credenciais do Supabase
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+        TABELA: ${{ secrets.TABELA }}
+        
+      run: |
+        echo "🚀 Iniciando cadastro automático..."
+        python client_cad_painel_new.py
+        echo "✅ Cadastro finalizado!"
+    
+    - name: Upload dos logs
+      uses: actions/upload-artifact@v3
+      if: always()  # Sempre faz upload, mesmo se der erro
+      with:
+        name: logs-cadastro-${{ github.run_number }}
+        path: |
+          *.log
+        retention-days: 7
+    
+    - name: Notificar erro via Telegram
+      if: failure()
+      env:
+        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: |
+        curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+        -d chat_id="${TELEGRAM_CHAT_ID}" \
+        -d text="🚨 ERRO no Cadastro MD Automático%0A%0ARun: ${{ github.run_number }}%0AVerifique os logs no GitHub Actions."
