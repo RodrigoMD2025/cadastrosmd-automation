@@ -181,6 +181,14 @@ A configuração `.github/workflows/github_workflow_primeiro.yml` já está pron
 
 Distribuído sob a licença MIT. Consulte o arquivo LICENSE para detalhes.
 
+## 🚀 Powered by Supabase + Playwright + GitHub Actions + Telegram Bot
+
+*Sistema de automação para cadastro de faixas musicais com relatórios em tempo real via Telegram.*
+
+**Tecnologias:** Supabase · Playwright · Python · Telegram Bot API · GitHub Actions · Excel
+
+**Funcionalidades:** Upload de Planilhas · Automação Web · Cadastro Automatizado · Atualização de Status · Notificações em Tempo Real · Logs Detalhados
+
 ## 📬 Contato
 
 Vamos nos conectar? Sou sempre aberto a discussões sobre automação, qualidade de software e modernização de sistemas!
@@ -197,11 +205,3 @@ Vamos nos conectar? Sou sempre aberto a discussões sobre automação, qualidade
     <img src="https://img.shields.io/badge/-WhatsApp-25D366?style=flat-square&labelColor=25D366&logo=whatsapp&logoColor=white"/>
   </a>
 </p>
-
-## 🚀 Powered by Supabase + Playwright + GitHub Actions + Telegram Bot
-
-*Sistema de automação para cadastro de faixas musicais com relatórios em tempo real via Telegram.*
-
-**Tecnologias:** Supabase · Playwright · Python · Telegram Bot API · GitHub Actions · Excel
-
-**Funcionalidades:** Upload de Planilhas · Automação Web · Cadastro Automatizado · Atualização de Status · Notificações em Tempo Real · Logs Detalhados
