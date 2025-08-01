@@ -19,7 +19,7 @@ Automatiza o cadastro de músicas e titulares na plataforma [sistemamd.com.br](h
 
 ---
 
-## 🌟 Funcionalidades Completas
+## 🧠 Funcionalidades do Sistema
 
 - 📥 **Upload de planilhas Excel para Supabase:**  
   Leitura inteligente da planilha Excel, normalizando colunas, limpando espaços e importando registros para a tabela configurada. Controla e loga erros para registros inválidos.
@@ -201,4 +201,10 @@ Para contato rápido, abra uma issue no GitHub ou envie mensagem via Telegram (s
 
 ---
 
-**🎉 Boa automação e ótimos cadastros! Que seu sistema funcione de forma fluida e confiável! 🚀🎶🤖**
+## 🚀 Powered by Supabase + Playwright + GitHub Actions + Telegram Bot
+
+*Sistema de automação para cadastro de faixas musicais com relatórios em tempo real via Telegram.*
+
+**Tecnologias:** Supabase · Playwright · Python · Telegram Bot API · GitHub Actions · Excel
+
+**Funcionalidades:** Upload de Planilhas · Automação Web · Cadastro Automatizado · Atualização de Status · Notificações em Tempo Real · Logs Detalhados
