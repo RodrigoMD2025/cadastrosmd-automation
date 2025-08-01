@@ -88,11 +88,9 @@ PLANILHA=Emitir.xlsx
 Recomenda-se criar um ambiente virtual (venv) no Python antes da instalação:
 
 ```
-
 python -m venv venv
 source venv/bin/activate  \# Linux/macOS
 venv\Scripts\activate     \# Windows
-
 ```
 
 Em seguida, instale as dependências:
