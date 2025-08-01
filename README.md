@@ -181,8 +181,6 @@ A configuração `.github/workflows/github_workflow_primeiro.yml` já está pron
 
 Distribuído sob a licença MIT. Consulte o arquivo LICENSE para detalhes.
 
----
-
 ## 📬 Contato
 
 Vamos nos conectar? Sou sempre aberto a discussões sobre automação, qualidade de software e modernização de sistemas!
