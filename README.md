@@ -55,8 +55,6 @@ Automatiza o cadastro de músicas e titulares na plataforma [sistemamd.com.br](h
 Configure um arquivo `.env` na raiz do projeto com as seguintes variáveis:
 
 ```
-
-
 # Credenciais do sistema MD
 
 LOGIN_USERNAME=seu_usuario_md
@@ -79,7 +77,6 @@ TABELA=cadastros
 # Nome do arquivo da planilha Excel
 
 PLANILHA=Emitir.xlsx
-
 ```
 
 > ⚠️ **Importante:** Nunca adicione o arquivo `.env` ao repositório Git. Use `.gitignore` para evitar exposição de credenciais.
