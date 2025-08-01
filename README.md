@@ -115,8 +115,7 @@ pip install -r requirements.txt
 Este passo é usado para importar os dados iniciais ou atualizados da planilha para a base Supabase:
 
 ```
-
-python segundo_codigo_refatorado.py
+upload_planilha_supabase.py
 
 ```
 
@@ -131,8 +130,7 @@ python segundo_codigo_refatorado.py
 Esta automação realiza o cadastro efetivo das músicas no sistema por meio do navegador sem interface (headless) usando o Playwright:
 
 ```
-
-python primeiro_codigo_supabase.py
+client_cad_painel_new.py
 
 ```
 
