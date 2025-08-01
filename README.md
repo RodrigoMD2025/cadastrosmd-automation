@@ -101,11 +101,8 @@ venv\Scripts\activate     \# Windows
 Em seguida, instale as dependências:
 
 ```
-
 pip install -r requirements.txt
-
 ```
-
 ---
 
 ## 📋 Uso Detalhado
@@ -116,7 +113,6 @@ Este passo é usado para importar os dados iniciais ou atualizados da planilha p
 
 ```
 upload_planilha_supabase.py
-
 ```
 
 - O script verifica a estrutura da tabela no Supabase antes de importar.
@@ -131,7 +127,6 @@ Esta automação realiza o cadastro efetivo das músicas no sistema por meio do 
 
 ```
 client_cad_painel_new.py
-
 ```
 
 - Busca os dados que ainda não foram cadastrados (status diferente de "Cadastro OK").
