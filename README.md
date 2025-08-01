@@ -1,4 +1,4 @@
-# 🎵 CadastrosMD-Automation 🤖
+# 💽 CadastrosMD-Automation
 
 Automatiza o cadastro de músicas e titulares na plataforma [sistemamd.com.br](https://sistemamd.com.br) por meio da integração com Supabase e automação web com Playwright. Possui upload de planilhas Excel, cadastro automatizado, atualização do status no banco e notificações via Telegram.
 
