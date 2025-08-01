@@ -158,10 +158,10 @@ A configuração `.github/workflows/github_workflow_primeiro.yml` já está pron
 
 ### Scripts
 
-- **segundo_codigo_refatorado.py:**  
+- **upload_planilha_supabase.py:**  
   Usa `pandas` para ler a planilha, limpa os dados, e envia via API REST para a tabela Supabase. Registra falhas de importação e exibe progresso com `tqdm`.
 
-- **primeiro_codigo_supabase.py:**  
+- **client_cad_painel_new.py:**  
   Implementa automação com Playwright para navegar no site, realizar login e preencher formulário para cada registro. Usa API do Supabase para buscar e atualizar status. Possui tratamento robusto de erros e envio de notificações via Telegram.
 
 ### Arquivo de Logs
