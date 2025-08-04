@@ -54,13 +54,13 @@ jobs:
         echo "✅ Cadastro finalizado!"
     
     - name: Upload dos logs
-      uses: actions/upload-artifact@v3
-      if: always()  # Sempre faz upload, mesmo se der erro
-      with:
-        name: logs-cadastro-${{ github.run_number }}
-        path: |
-          *.log
-        retention-days: 7
+  uses: actions/upload-artifact@v4
+  if: always()
+  with:
+    name: logs-cadastro-${{ github.run_number }}
+    path: |
+      *.log
+    retention-days: 7
     
     - name: Notificar erro via Telegram
       if: failure()
