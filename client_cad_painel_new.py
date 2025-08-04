@@ -54,8 +54,8 @@ class WebAutomation:
             }
             
             # Busca apenas registros que ainda não foram processados (sem status 'Cadastro OK')
-            url = f"{self.supabase_url}/rest/v1/{self.tabela}?select=*&PAINEL_NEW=not.eq.Cadastro OK"
-            
+            url = f"{self.supabase_url}/rest/v1/{self.tabela}?select=*&or=(PAINEL_NEW.is.null,PAINEL_NEW.neq.Cadastro OK)"
+
             response = requests.get(url, headers=headers)
             
             if response.status_code == 200:
