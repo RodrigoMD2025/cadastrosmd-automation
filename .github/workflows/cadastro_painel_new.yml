@@ -16,6 +16,7 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
+      has_jobs: ${{ steps.set-matrix.outputs.has_jobs }}
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout do código
@@ -36,18 +37,15 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
           TABELA: cadastros
-        run: |
-          # Executa o dispatcher e captura sua saída para o output do job
-          MATRIX_JSON=$(python dispatcher.py)
-          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+        run: python dispatcher.py
 
   # --------------------------------------------------------------------------
   # JOB 2: CADASTRO - Executa o cadastro em paralelo
   # --------------------------------------------------------------------------
   cadastro-automatico:
     needs: setup
-    # Só executa se a matriz gerada não for vazia
-    if: fromJson(needs.setup.outputs.matrix).include[0] != null
+    # Só executa se o setup indicar que há trabalhos a fazer
+    if: needs.setup.outputs.has_jobs == 'True'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -105,13 +103,13 @@ jobs:
   # JOB 3: NOTIFY - Envia uma notificação final consolidada
   # --------------------------------------------------------------------------
   notify:
-    needs: [setup, cadastro-automatico]
-    # Executa sempre, para notificar sucesso ou falha
+    # Executa sempre, para notificar sucesso ou falha, após os jobs anteriores
     if: always()
+    needs: [setup, cadastro-automatico]
     runs-on: ubuntu-latest
     steps:
       - name: Notificar sucesso via Telegram
-        if: needs.cadastro-automatico.result == 'success'
+        if: needs.setup.outputs.has_jobs == 'True' && needs.cadastro-automatico.result == 'success'
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -119,9 +117,17 @@ jobs:
           MESSAGE="✅ SUCESSO | Cadastro MD Paralelo finalizado.\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" -d chat_id="${TELEGRAM_CHAT_ID}" -d text="$MESSAGE"
 
+      - name: Notificar ausência de dados
+        if: needs.setup.outputs.has_jobs == 'False'
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="ℹ️ INFO | Cadastro MD Paralelo executado, mas não havia registros pendentes para processar."
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" -d chat_id="${TELEGRAM_CHAT_ID}" -d text="$MESSAGE"
+
       - name: Notificar falha via Telegram
-        # Notifica se o setup falhou OU se algum dos workers falhou
-        if: needs.setup.result == 'failure' || needs.cadastro-automatico.result == 'failure'
+        if: failure() && needs.setup.outputs.has_jobs == 'True'
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

@@ -56,8 +56,10 @@ def main():
     total_records = get_pending_count()
     
     matrix = {"include": []}
+    has_jobs = False
 
     if total_records > 0:
+        has_jobs = True
         # Calcula o número de trabalhadores necessários com base na sua regra
         num_workers = (total_records + BATCH_SIZE - 1) // BATCH_SIZE
         num_workers = min(num_workers, MAX_WORKERS)
@@ -77,12 +79,23 @@ def main():
         logging.info("Nenhum registro para processar. O workflow não irá iniciar nenhum trabalhador.")
 
     # Formata a saída para o GitHub Actions
-    output_string = json.dumps(matrix)
-    logging.info(f"Matriz Gerada: {output_string}")
+    matrix_string = json.dumps(matrix)
+    logging.info(f"Matriz Gerada: {matrix_string}")
     
-    # Imprime a matriz para que o GitHub Actions possa capturá-la como uma saída do job
-    # Este formato é entendido pelo `fromJSON` no workflow
-    print(output_string)
+    # Usa o novo formato de saída do GitHub Actions
+    # Escreve as saídas em um arquivo definido pela variável de ambiente GITHUB_OUTPUT
+    github_output_file = os.getenv('GITHUB_OUTPUT')
+    if github_output_file:
+        with open(github_output_file, 'a') as f:
+            f.write(f"has_jobs={has_jobs}\n")
+            f.write(f"matrix={matrix_string}\n")
+        logging.info("Saídas 'has_jobs' e 'matrix' escritas para GITHUB_OUTPUT.")
+    else:
+        # Fallback para o caso de rodar localmente sem a variável GITHUB_OUTPUT
+        logging.warning("Variável GITHUB_OUTPUT não encontrada. Imprimindo saídas no console.")
+        print(f"has_jobs={has_jobs}")
+        print(f"matrix={matrix_string}")
+
 
 if __name__ == "__main__":
     main()
