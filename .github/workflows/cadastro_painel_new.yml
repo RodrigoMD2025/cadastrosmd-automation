@@ -1,4 +1,4 @@
-name: Cadastro MD - Painel Automático
+name: Cadastro MD - Painel Automático Paralelo (v2)
 
 on:
   workflow_dispatch:
@@ -10,9 +10,50 @@ on:
         type: boolean
 
 jobs:
-  cadastro-automatico:
+  # --------------------------------------------------------------------------
+  # JOB 1: SETUP - Calcula a matriz de trabalho para os workers paralelos
+  # --------------------------------------------------------------------------
+  setup:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
 
+      - name: Configurar Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Instalar dependências para o dispatcher
+        run: pip install requests python-dotenv
+
+      - name: Calcular matriz de execução
+        id: set-matrix
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
+          TABELA: cadastros
+        run: |
+          # Executa o dispatcher e captura sua saída para o output do job
+          MATRIX_JSON=$(python dispatcher.py)
+          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+
+  # --------------------------------------------------------------------------
+  # JOB 2: CADASTRO - Executa o cadastro em paralelo
+  # --------------------------------------------------------------------------
+  cadastro-automatico:
+    needs: setup
+    # Só executa se a matriz gerada não for vazia
+    if: fromJson(needs.setup.outputs.matrix).include[0] != null
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Gera jobs paralelos com base na saída do job de setup
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    
     steps:
     - name: Checkout do código
       uses: actions/checkout@v4
@@ -33,7 +74,7 @@ jobs:
         playwright install chromium
         playwright install-deps chromium
 
-    - name: Executar cadastro automático
+    - name: Executar cadastro (Worker ${{ matrix.worker_id }})
       env:
         LOGIN_USERNAME: ${{ secrets.LOGIN_USERNAME }}
         LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
@@ -41,27 +82,49 @@ jobs:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_API_KEY: ${{ secrets.SUPABASE_API_KEY }}
-        TABELA: cadastros  # <-- aqui está a correção principal!
+        TABELA: cadastros
+        # Parâmetros para o worker
+        WORKER_ID: ${{ matrix.worker_id }}
+        JOB_OFFSET: ${{ matrix.offset }}
+        JOB_LIMIT: ${{ matrix.limit }}
+        DISABLE_TELEGRAM_NOTIFICATION: "true"
       run: |
-        echo "🚀 Iniciando cadastro automático..."
+        echo "🚀 Iniciando Worker ${{ matrix.worker_id }} | Offset: ${{ matrix.offset }}, Limit: ${{ matrix.limit }}"
         python client_cad_painel_new.py
-        echo "✅ Cadastro finalizado!"
+        echo "✅ Worker ${{ matrix.worker_id }} finalizado!"
 
-    - name: Upload dos logs
+    - name: Upload dos logs (Worker ${{ matrix.worker_id }})
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: logs-cadastro-${{ github.run_number }}
-        path: |
-          *.log
+        name: logs-worker-${{ matrix.worker_id }}-${{ github.run_number }}
+        path: painel_novo_*.log
         retention-days: 7
 
-    - name: Notificar erro via Telegram
-      if: failure()
-      env:
-        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      run: |
-        curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-        -d chat_id="${TELEGRAM_CHAT_ID}" \
-        -d text="🚨 ERRO no Cadastro MD Automático%0A%0ARun: ${{ github.run_number }}%0AVerifique os logs no GitHub Actions."
+  # --------------------------------------------------------------------------
+  # JOB 3: NOTIFY - Envia uma notificação final consolidada
+  # --------------------------------------------------------------------------
+  notify:
+    needs: [setup, cadastro-automatico]
+    # Executa sempre, para notificar sucesso ou falha
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notificar sucesso via Telegram
+        if: needs.cadastro-automatico.result == 'success'
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="✅ SUCESSO | Cadastro MD Paralelo finalizado.\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" -d chat_id="${TELEGRAM_CHAT_ID}" -d text="$MESSAGE"
+
+      - name: Notificar falha via Telegram
+        # Notifica se o setup falhou OU se algum dos workers falhou
+        if: needs.setup.result == 'failure' || needs.cadastro-automatico.result == 'failure'
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="🚨 ERRO | Cadastro MD Paralelo falhou.\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" -d chat_id="${TELEGRAM_CHAT_ID}" -d text="$MESSAGE"

@@ -11,19 +11,13 @@ from dotenv import load_dotenv
 # Carrega as variáveis de ambiente do arquivo .env (para uso local)
 load_dotenv()
 
-# Configuração do logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s: %(message)s",
-    datefmt='%d/%m/%Y %H:%M:%S',
-    filename='painel_novo.log',
-    filemode='w',
-)
+# --- Configuração do Logging movida para o __init__ para permitir nomes de arquivo dinâmicos ---
 
 class WebAutomation:
     def __init__(self):
         self.browser = None
         self.page = None
+        
         # Carrega as variáveis de ambiente
         self.login_username = os.getenv('LOGIN_USERNAME')
         self.login_password = os.getenv('LOGIN_PASSWORD')
@@ -32,6 +26,27 @@ class WebAutomation:
         self.supabase_url = os.getenv('SUPABASE_URL')
         self.supabase_api_key = os.getenv('SUPABASE_API_KEY')
         self.tabela = os.getenv('TABELA', 'cadastros')
+
+        # Variáveis para controle de paralelismo
+        self.worker_id = os.getenv('WORKER_ID', 'local')
+        self.job_offset = os.getenv('JOB_OFFSET')
+        self.job_limit = os.getenv('JOB_LIMIT')
+        self.disable_telegram = os.getenv('DISABLE_TELEGRAM_NOTIFICATION', 'false').lower() == 'true'
+
+        # Configuração do logging dinâmico
+        log_filename = f'painel_novo_{self.worker_id}.log'
+        
+        # Remove handlers antigos para evitar duplicação de logs
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+            
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] [Worker " + str(self.worker_id) + "]: %(message)s",
+            datefmt='%d/%m/%Y %H:%M:%S',
+            filename=log_filename,
+            filemode='w',
+        )
         
         # Validação das variáveis obrigatórias
         required_vars = [
@@ -43,9 +58,9 @@ class WebAutomation:
             raise ValueError("Variáveis de ambiente obrigatórias não foram definidas. Verifique o arquivo .env ou as secrets do GitHub")
 
     def buscar_dados_supabase(self):
-        """Busca os dados da tabela no Supabase"""
+        """Busca uma fatia de dados da tabela no Supabase usando offset e limit."""
         try:
-            logging.info("Buscando dados do Supabase...")
+            logging.info(f"Buscando dados do Supabase (Offset: {self.job_offset}, Limit: {self.job_limit})...")
             
             headers = {
                 "apikey": self.supabase_api_key,
@@ -53,19 +68,28 @@ class WebAutomation:
                 "Content-Type": "application/json"
             }
             
-            # Busca apenas registros que ainda não foram processados (sem status 'Cadastro OK')
-            url = f"{self.supabase_url}/rest/v1/{self.tabela}?select=*&or=(PAINEL_NEW.is.null,PAINEL_NEW.neq.Cadastro OK)"
+            # Busca apenas registros que ainda não foram processados
+            base_url = f"{self.supabase_url}/rest/v1/{self.tabela}?select=*&or=(PAINEL_NEW.is.null,PAINEL_NEW.neq.Cadastro OK)"
+            
+            # Adiciona ordenação para garantir que as fatias sejam consistentes
+            url_with_order = base_url + "&order=id.asc"
+
+            # Adiciona paginação se offset e limit forem fornecidos
+            if self.job_offset is not None and self.job_limit is not None:
+                url = f"{url_with_order}&offset={self.job_offset}&limit={self.job_limit}"
+            else:
+                url = url_with_order
 
             response = requests.get(url, headers=headers)
             
             if response.status_code == 200:
                 dados = response.json()
                 if not dados:
-                    logging.info("Nenhum registro pendente encontrado no Supabase.")
+                    logging.info("Nenhum registro pendente encontrado para este worker.")
                     return pd.DataFrame()
                 
                 df = pd.DataFrame(dados)
-                logging.info(f"Encontrados {len(df)} registros para processar no Supabase.")
+                logging.info(f"Encontrados {len(df)} registros para processar.")
                 return df
             else:
                 logging.error(f"Erro ao buscar dados do Supabase: {response.status_code} - {response.text}")
@@ -117,10 +141,8 @@ class WebAutomation:
             await self.page.fill('input#login-password', self.login_password)
             await self.page.click('button[type="submit"]')
             
-            # Aguarda um pouco para verificar se o login foi bem-sucedido
             await self.page.wait_for_timeout(2000)
             
-            # Verifica se ainda está na página de login (indicaria erro)
             current_url = self.page.url
             if "login" in current_url:
                 logging.error("Login falhou - ainda na página de login")
@@ -133,7 +155,6 @@ class WebAutomation:
             return False
 
     async def run_task_with_time_estimate(self):
-        # Busca dados do Supabase ao invés da planilha
         tabela = self.buscar_dados_supabase()
         
         if tabela.empty:
@@ -149,9 +170,8 @@ class WebAutomation:
         contador = 0
         logging.info(f"Iniciando Cadastro de {total_items} Faixas...")
 
-        for index, row in tqdm(tabela.iterrows(), total=total_items, desc="Progresso"):
+        for index, row in tqdm(tabela.iterrows(), total=total_items, desc=f"Worker {self.worker_id} Progresso"):
             try:
-                # Ajuste os nomes das colunas conforme sua tabela do Supabase
                 isrc = row.get('ISRC')
                 artista = row.get('ARTISTA') 
                 titulares = row.get('TITULARES')
@@ -180,7 +200,6 @@ class WebAutomation:
                 await self.page.click('button#AdicionarTitular')
                 await self.page.click('button#BtnSalvar')
 
-                # Atualiza o status no Supabase ao invés da planilha
                 if self.atualizar_status_supabase(isrc, 'Cadastro OK'):
                     logging.info(f"ISRC: {isrc}, Artista: {artista}, Titulares: {titulares} - Status atualizado")
                     contador += 1
@@ -189,12 +208,15 @@ class WebAutomation:
                     
             except Exception as e:
                 logging.error(f"Erro durante o cadastro da faixa {index + 1} - ISRC: {isrc}: {e}")
-                # Marca como erro no Supabase
                 self.atualizar_status_supabase(isrc, 'Erro no Cadastro')
                 continue
 
-        logging.info(f"Total de {contador} faixas cadastradas com sucesso.")
-        await self.send_telegram_notification(contador)
+        logging.info(f"Total de {contador} faixas cadastradas com sucesso por este worker.")
+        
+        # A notificação por Telegram só será enviada se não estiver desabilitada
+        if not self.disable_telegram:
+            await self.send_telegram_notification(contador)
+            
         await self.close_driver()
 
     async def send_telegram_notification(self, contador):
